@@ -1,0 +1,16 @@
+[package]
+name = "blue-tool"
+version = "0.1.0"
+authors = ["Aaron Griffith <aargri@gmail.com"]
+edition = "2018"
+
+[dependencies]
+static_assertions = "1"
+mbrman = "0.4"
+fatfs = { git = "https://github.com/agrif/rust-fatfs", branch = "extents" }
+fscommon = "0.1"
+rand = "0.8"
+byteorder = "1.4"
+
+[build-dependencies]
+llvm-tools = "0.1"

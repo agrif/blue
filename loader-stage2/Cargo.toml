@@ -1,0 +1,17 @@
+[package]
+name = "blue-loader-stage2"
+version = "0.1.0"
+authors = ["Aaron Griffith <aargri@gmail.com"]
+edition = "2018"
+
+[profile.release]
+opt-level = "z"
+
+[dependencies]
+blue-real = { path = "../real" }
+
+[dependencies.fatfs]
+git = "https://github.com/agrif/rust-fatfs"
+branch = "extents"
+default-features = false
+features = ["lfn"]

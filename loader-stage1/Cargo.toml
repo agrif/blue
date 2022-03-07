@@ -1,0 +1,10 @@
+[package]
+name = "blue-loader-stage1"
+version = "0.1.0"
+authors = ["Aaron Griffith <aargri@gmail.com"]
+edition = "2018"
+
+[profile.release]
+opt-level = "z"
+
+[dependencies]
