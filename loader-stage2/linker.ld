@@ -2,6 +2,9 @@ INCLUDE ../layout.ld
 
 ENTRY(_start);
 
+/* move gdt out into unreal-land */
+GDT = 0x10000;
+
 /* move page tables out into unreal land, away from stack
    careful, though: physical address must be 0x1000 aligned
    and we are in a non-zero segment! */

@@ -116,48 +116,58 @@ impl GlobalDescriptorTable {
     }
 }
 
-struct GDTInfo {
-    table: GlobalDescriptorTable,
-    data32: u16,
-    code64: u16,
+#[derive(Clone, Copy, Debug)]
+pub struct GDTInfo {
+    pub data32: u16,
+    pub code64: u16,
 }
 
-static GDT: GDTInfo = {
-    let mut table = GlobalDescriptorTable::new();
-    let data32 = table.add_entry(
-        0x0000_0000,
-        0x000f_ffff,
-        PrivilegeLevel::Ring0,
-        SegmentType::Data,
-        SegmentSize::Code32,
-    );
-    let code64 = table.add_entry(
-        0x0000_0000,
-        0x000f_ffff,
-        PrivilegeLevel::Ring0,
-        SegmentType::Code,
-        SegmentSize::Code64,
-    );
-    // temporary 0x18 16 bit code selector for stage3, FIXME
-    let code16 = table.add_entry(
-        0x0000_0000,
-        0x0000_000f,
-        PrivilegeLevel::Ring0,
-        SegmentType::Code,
-        SegmentSize::Code16,
-    );
-    GDTInfo {
-        table,
-        data32,
-        code64,
-    }
-};
+extern "cdecl" {
+    static mut GDT: GlobalDescriptorTable;
+}
 
-pub fn load() {
-    GDT.table.load();
+static mut GDTINFO: Option<GDTInfo> = None;
+
+pub fn load() -> &'static GDTInfo {
+    unsafe {
+        if let Some(ref info) = GDTINFO {
+            return info;
+        }
+
+        let mut gdt = GlobalDescriptorTable::new();
+
+        let data32 = gdt.add_entry(
+            0x0000_0000,
+            0x000f_ffff,
+            PrivilegeLevel::Ring0,
+            SegmentType::Data,
+            SegmentSize::Code32,
+        );
+        let code64 = gdt.add_entry(
+            0x0000_0000,
+            0x000f_ffff,
+            PrivilegeLevel::Ring0,
+            SegmentType::Code,
+            SegmentSize::Code64,
+        );
+        // temporary 0x18 16 bit code selector for stage3, FIXME
+        let code16 = gdt.add_entry(
+            0x0000_0000,
+            0x0000_000f,
+            PrivilegeLevel::Ring0,
+            SegmentType::Code,
+            SegmentSize::Code16,
+        );
+
+        GDT = gdt;
+        GDT.load();
+
+        GDTINFO.insert(GDTInfo { data32, code64 })
+    }
 }
 
 pub unsafe fn unreal_mode() {
+    let GDTInfo { data32, .. } = load();
     core::arch::asm!(
         // stop interrupts and save old data segment
         "cli",
@@ -187,13 +197,14 @@ pub unsafe fn unreal_mode() {
         "pop ds",
         "sti",
 
-        in(reg) GDT.data32,
+        in(reg) *data32,
         out("eax") _,
     );
 }
 
 pub unsafe fn long_mode(entry: unsafe extern "cdecl" fn() -> !) -> ! {
     let zero_idt = DescriptorTablePointer { limit: 0, base: 0 };
+    let GDTInfo { data32, code64 } = load();
 
     // turn all interrupts off, until we make it inside
     core::arch::asm!("cli");
@@ -232,9 +243,9 @@ pub unsafe fn long_mode(entry: unsafe extern "cdecl" fn() -> !) -> ! {
         "push {2}",
         "push {3}",
         "retf",
-        in(reg) GDT.data32 as u32,
+        in(reg) *data32 as u32,
         const ((crate::BOOT_SEGMENT as u32) << 4) + 0xfff0,
-        in(reg) GDT.code64 as u32,
+        in(reg) *code64 as u32,
         in(reg) entry as u32,
         options(noreturn),
     )
